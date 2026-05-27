@@ -7,11 +7,16 @@ class Sensor(Base):
     __tablename__ = "sensores"
 
     id = Column(Integer, primary_key=True, index=True)
-    tag = Column(String, unique=True, index=True)
-    tipo = Column(String)
+    
+    # --- CORREÇÃO PRINCIPAL AQUI ---
+    # Adicionado o limite de 50 caracteres para a tag
+    tag = Column(String(50), unique=True, index=True) 
+    
+    # Boa prática: limitar também os outros textos (ex: 50 e 20 caracteres)
+    tipo = Column(String(50)) 
     range_lrv = Column(Float)
     range_urv = Column(Float)
-    unidade = Column(String)
+    unidade = Column(String(20)) 
 
     leituras = relationship("Leitura", back_populates="sensor", cascade="all, delete")
 
