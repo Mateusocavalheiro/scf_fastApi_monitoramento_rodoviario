@@ -1,12 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from datetime import datetime
 import models, schemas
 from database import SessionLocal, engine
 
-#models.Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)
+
+FUSO_BR = ZoneInfo("America/Sao_Paulo")
 
 app = FastAPI()
 
@@ -97,3 +102,24 @@ def add_leituras(sensor_id: int, dados: schemas.LeiturasInput, db: Session = Dep
 
     db.commit()
     return novas_leituras
+
+
+@app.get("/leituras/{sensor_id}/ultima", response_model=schemas.LeituraOut)
+def get_ultima_leitura(sensor_id: int, db: Session = Depends(get_db)):
+    # Faz a query filtrando pelo sensor e ordenando do mais recente para o mais antigo (desc)
+    leitura = db.query(models.Leitura)\
+                .filter(models.Leitura.sensor_id == sensor_id)\
+                .order_by(desc(models.Leitura.timestamp))\
+                .first()
+    
+    # Se não houver nenhuma leitura no banco para este sensor
+    if not leitura:
+        raise HTTPException(status_code=404, detail="Nenhuma leitura encontrada para este sensor.")
+        
+    # Converte de UTC para o horário de Brasília
+    if leitura.timestamp:
+        if leitura.timestamp.tzinfo is None:
+            leitura.timestamp = leitura.timestamp.replace(tzinfo=timezone.utc)
+        leitura.timestamp = leitura.timestamp.astimezone(FUSO_BR)
+        
+    return leitura
